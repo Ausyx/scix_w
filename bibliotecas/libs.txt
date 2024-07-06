@@ -1,0 +1,4 @@
+websockets by markus sattler
+OneWire by Jim Studt
+DallasTemperature by Miles Burton
+
