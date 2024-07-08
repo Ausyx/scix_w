@@ -1,23 +1,30 @@
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LittleFS.h>
 #include <EEPROM.h>
 
+#define TEMP_ADDR_MEM_EEPROM 10
+#define SIZE_MEM_EEPROM 512
 
+//Porta sensor de temperatura 
+#define SENSOR_TEMP_DATA 5 //GPIO05
+#define SENSOR_POWER_PIN 2 //GPIO02
+
+//Conexão com Central
 const char* const ssid = "Ausyx";
 const char* const password = "AusyxSolucoes";
 const uint16_t esp32ServerPort = 80;
-const int ONE_WIRE_BUS = 5;  // GPIO05
-const int SENSOR_POWER_PIN = 2;  // GPIO02
+
 const float TEMPERATURE_THRESHOLD = 1.2;  // Temperature variation to trigger data sending (in Celsius)
 const unsigned long DEEP_SLEEP_INTERVAL = 60;  // Deep Sleep interval in seconds (60 seconds = 1 minute)
 const unsigned long CONNECTION_CHECK_INTERVAL = 300;  // Connection check interval to verify everything is correct (300 seconds = 5 minutes)
 const int VERIFICATION_COUNT_THRESHOLD = 5;  // Number of checks before mandatory connection and sending
 const char* COUNT_FILE = "/connectionCount.txt";
 
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(SENSOR_TEMP_DATA);
 DallasTemperature sensors(&oneWire);
+
 WiFiClient client;
 IPAddress Server(192, 168, 4, 1);
 unsigned int verificationCount = 0;
@@ -35,7 +42,7 @@ void setup() {
   digitalWrite(SENSOR_POWER_PIN, LOW);
   WiFi.begin(ssid, password);
 
-  EEPROM.begin(512);  //EEPROM do ESP32, memória que armazena valores
+  EEPROM.begin(SIZE_MEM_EEPROM);  //EEPROM do ESP32, memória que armazena valores
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(100);
@@ -49,7 +56,7 @@ void setup() {
   // Read the first temperature
   readTemperature();
 
-  lastTempC = EEPROM.read(10);
+  lastTempC = EEPROM.read(TEMP_ADDR_MEM_EEPROM);
 }
 
 void loop() {
@@ -96,15 +103,14 @@ void loop() {
 
    lastTempC = tempC;
 
-  EEPROM.put(10, lastTempC);
+  EEPROM.put(TEMP_ADDR_MEM_EEPROM, lastTempC);
   EEPROM.commit();
 
   // Wait a moment before entering deep sleep
   delay(500);
 
   // Enter deep sleep for 1 minute
-  esp_sleep_enable_timer_wakeup(DEEP_SLEEP_INTERVAL * 1000000);
-  esp_deep_sleep_start();
+  ESP.deepSleep(DEEP_SLEEP_INTERVAL * 1000000);
 }
 
 void performHealthCheck() {

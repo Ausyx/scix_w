@@ -1,3 +1,14 @@
+void Lenha_mode() {
+  if (((SensorTemperaturaE < tempMaxEntrada) || (SensorTemperaturaM < tempMaxMassa))&&(status2 == 0)) {
+    FECHANDO();
+  }
+
+  if (((SensorTemperaturaE > tempMaxEntrada) || (SensorTemperaturaM >tempMaxMassa))&& (status1 == 0)) {
+    ABRINDO();
+  }
+}
+
+
 void PACT_functions() {  //função que funciona em segundo plano, faz as funções de um PACT, ou seja, o controle de temperatura para nunca deixar a temperatura ultrapassar demais a faixa de máxima
 
   EEPROM.get(55, maxTemperatureMassaALL);  //pega a maior temperatura que ja foi colocado o ESP32
@@ -48,19 +59,30 @@ void PACT_functions() {  //função que funciona em segundo plano, faz as funç�
   }
 
   if (muteState0 == 0 && SensorTemperaturaE >= (tempMaxEntrada + 7)) {
-   Lcm.changePicId(9);
+    Lcm.changePicId(9);
+    digitalWrite(BUZINA, HIGH);
+
+    muteState0 = 1;
   }
 
   if (muteState3 == 0 && SensorTemperaturaM < (tempMinMassa - 7) && tempMinMassa != 0) {
-   Lcm.changePicId(8);
+    Lcm.changePicId(8);
+    digitalWrite(BUZINA, HIGH);
+
+    muteState3 = 1;
   }
 
   if (muteState1 == 0 && tempMinEntrada != 0 && SensorTemperaturaE < (tempMinEntrada - 7)) {
-   Lcm.changePicId(7);
+    Lcm.changePicId(7);
+    digitalWrite(BUZINA, HIGH);
+
+    muteState1 = 1;
   }
 
   if (muteState2 == 0 && SensorTemperaturaM > (tempMaxMassa + 7)) {
-   Lcm.changePicId(10);
+    Lcm.changePicId(10);
+    digitalWrite(BUZINA, HIGH);
+    muteState2 = 1;
   }
 
 
@@ -106,32 +128,35 @@ void PACT_functions() {  //função que funciona em segundo plano, faz as funç�
         digitalWrite(OUT_QUEIMADOR, LOW);
         queimador = 0;
       }
-
     }
 
   }
-    ///////////////////////////////////////////////////////////////////////////////////////// ligação direta //////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////// ligação direta //////////////////////////////////////////////////////
 
-    else if (lenhaMode == 2) {
-      digitalWrite(OUT_QUEIMADOR, HIGH);
-      queimador = 1;
-
-    }
-  
+  else if (lenhaMode == 2) {
+    digitalWrite(OUT_QUEIMADOR, HIGH);
+    queimador = 1;
+  }
 }
 
 
-  //task que visa repetir esse processo sem parar, coloquei para repertir a cada dez segundos, visando não sobrecarregar o core
-  void PACT_functions_task(void *pvParameters) {
-
-    (void)pvParameters;  // Evita aviso de não utilizado
-
-    while (1) {
-      Serial.print(" This taks run on core: ");
-      Serial.println(xPortGetCoreID());
-
-      PACT_functions();
-
-      vTaskDelay(30000 / portTICK_PERIOD_MS);
-    }
+//task que visa repetir esse processo sem parar, coloquei para repertir a cada dez segundos, visando não sobrecarregar o core
+void PACT_functions_task(void *pvParameters) {
+  if (iniciando == 0) {
+   // CALIBRA();
+    iniciando = 1;
   }
+
+
+  (void)pvParameters;  // Evita aviso de não utilizado
+
+  while (1) {
+    Serial.print(" This taks run on core: ");
+    Serial.println(xPortGetCoreID());
+
+    PACT_functions();
+    Lenha_mode();
+
+    vTaskDelay(30000 / portTICK_PERIOD_MS);
+  }
+}

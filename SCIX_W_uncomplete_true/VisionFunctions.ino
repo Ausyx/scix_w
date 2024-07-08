@@ -29,13 +29,13 @@ void tempPasswordToArray(char* passwordArray, const String& tempPassword) {
 // Função para ler as credenciais da EEPROM
 void readCredentialsFromEEPROM() {
   // Lê o SSID da EEPROM
-  for (int i = 0; i < 32; ++i) {
+  for (int i = 100; i < 132; ++i) {
     ssidEEPROM[i] = EEPROM.read(0 + i);
     if (ssidEEPROM[i] == '\0') break;  // Terminador de string encontrado
   }
 
   // Lê a senha da EEPROM
-  for (int i = 0; i < 64; ++i) {
+  for (int i = 132; i < 178; ++i) {
     passwordEEPROM[i] = EEPROM.read(32 + i);
     if (passwordEEPROM[i] == '\0') break;  // Terminador de string encontrado
   }
@@ -44,13 +44,13 @@ void readCredentialsFromEEPROM() {
 //lógica para salvar o login e a senha na EEPROM, para não termos problema ao ligar e desligar o ESP32
 void saveCredentialsToEEPROM(const char* ssid, const char* password) {
   // Salva o SSID na EEPROM
-  for (int i = 0; i < strlen(ssid); ++i) {
+  for (int i = 100; i < strlen(ssid) + 100; ++i) {
     EEPROM.write(0 + i, ssid[i]);
   }
   EEPROM.write(0 + strlen(ssid), '\0');  // Terminador de string
 
   // Salva a senha na EEPROM
-  for (int i = 0; i < strlen(password); ++i) {
+  for (int i = 132; i < strlen(password) + 132; ++i) {
     EEPROM.write(32 + i, password[i]);
   }
   EEPROM.write(32 + strlen(password), '\0');  // Terminador de string
@@ -120,6 +120,12 @@ void simpleVConfig() {
   EEPROM.put(50, OF);
 
   EEPROM.commit();
+
+  tempMaxEntrada = sheetsEntradaMax;
+  tempMinEntrada = sheetsEntradaMin;
+  tempMaxMassa = sheetsMassaMax;
+  tempMinMassa = sheetsMassaMin;
+  
 }
 
 
@@ -134,6 +140,10 @@ void Page1()  //PAGE MAIN
   } else {
     Wifi.write(0);
   }
+
+  bateria = map(batteryLevel, 0, 5, 0, 4);
+
+  batteryIconMass.write(bateria);
 
   if (IntKey == 1) {
     //pegando o valor do botão play, se clicou é pra intermitência funcionar, caso a chave esteja no meio ou para baixo ele vai avisar
@@ -198,6 +208,7 @@ void Page10()  //Tela massa acima
   if (getMuteMH == 1) {
     muteState2 = 1;
     queimador = 0;
+    digitalWrite(BUZINA, LOW);
     mute1.write(0);
     getMuteMH = 0;
   }
@@ -213,6 +224,7 @@ void Page9()  //Tela entrada acima
   if (getMuteEH == 1) {
     muteState0 = 1;
     queimador = 0;
+    digitalWrite(BUZINA, LOW);
     mute2.write(0);
     getMuteEH = 0;
   }
@@ -229,6 +241,7 @@ void Page8()  //Tela massa abaixo
   if (getMuteML == 1) {
     muteState3 = 1;
     queimador = 0;
+    digitalWrite(BUZINA, LOW);
     mute3.write(0);
     getMuteML = 0;
   }
@@ -245,6 +258,7 @@ void Page7()  //Tela entrada abaixo
 
     muteState1 = 1;
     queimador = 0;
+    digitalWrite(BUZINA, LOW);
     mute4.write(0);
     getMuteEL = 0;
   }
@@ -292,6 +306,7 @@ void Page4()  //página de wifi
 //acontece quando chega valor de sensor novo
 void Page3() {
   
+  Serial.print("aqui dentro");
    if (EntradaConnect.available()) {
     EntradaConnect.getData();
     connectEntrada = EntradaConnect.read();
@@ -323,6 +338,8 @@ void Page3() {
     }
     EntradaConnect.write(0);
     connectEntrada = 0;
+    nonStored = false;
+     Lcm.changePicId(0);
   }
 
   if (connectMassa) {
@@ -344,6 +361,8 @@ void Page3() {
 
     MassaConnect.write(0);
     connectMassa = 0;
+    nonStored = false;
+     Lcm.changePicId(0);
   }
 
   if (noConnect) {
@@ -357,6 +376,8 @@ void Page3() {
     }
     NoConnect.write(0);
     noConnect = 0;
+    nonStored = false;
+    Lcm.changePicId(0);
   }
 }
 
@@ -387,6 +408,7 @@ void Page5() {
       sensorNumberDisp.write(sensorNumber);
       Sensor1.write(0);
       connectGet1 = 0;
+      //Lcm.changePicId(0);
     }
   }
 
@@ -397,6 +419,7 @@ void Page5() {
       sensorNumberDisp.write(sensorNumber);
       Sensor2.write(0);
       connectGet2 = 0;
+      //Lcm.changePicId(0);
     }
   }
 
@@ -407,6 +430,7 @@ void Page5() {
       sensorNumberDisp.write(sensorNumber);
       Sensor3.write(0);
       connectGet3 = 0;
+      //Lcm.changePicId(0);
     }
   }
 
@@ -417,6 +441,7 @@ void Page5() {
       sensorNumberDisp.write(sensorNumber);
       Sensor4.write(0);
       connectGet4 = 0;
+      //Lcm.changePicId(0);
     }
   }
 }

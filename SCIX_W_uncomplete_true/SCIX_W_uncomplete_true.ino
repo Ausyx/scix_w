@@ -18,10 +18,13 @@
 //inverti as portas 18 e 19
 #define OUT_QUEIMADOR 18  //ch3
 #define OUT_TEMPO 5       // ch2
+#define IN1 15     //abrir wind
+#define IN2 13     //fechar wind
 #define KeyInt1 22
 #define KeyInt2 23
-#define keyPACT1 36
-#define keyPACT2 39
+#define keyPACT1 33
+#define keyPACT2 32
+#define BUZINA 34
 
 int status1 = 0;
 int status2 = 0;
@@ -29,6 +32,7 @@ int ligando = 0;
 bool iniciou = false;
 bool changePassword = false;
 bool changeLogin = false;
+int bateria = 0;
 
 
 RtcDS3231<TwoWire> Rtc(Wire);
@@ -37,7 +41,7 @@ WiFiServer server(80);
 
 WiFiClient client;
 
-const char* centralServer = "192.168.1.101";  // IP da central
+const char* centralServer = "192.168.4.2";  // IP da entrada
 const int centralPort = 80;
 DeviceAddress tempDeviceAddress;
 String toSend;
@@ -48,7 +52,7 @@ const char* googleScriptURL = "https://script.google.com/macros/s/AKfycbzzD5pRw_
 
 //variáveis do display
 
-LCM Lcm(Serial);
+LCM Lcm(Serial2);
 LcmString cronometer(1, 48);  //Cronômetro em que vai ser imprimido o tempo no formato de texto para ter os dois pontos, o 1 representa o VP e o 48 o tamanho
 
 LcmString status(50, 48);  //status do processo ativo ou em repouso
@@ -89,6 +93,7 @@ LcmVar changeDataDisp(240);
 
 int changeData = 0;
 int changeWifi = 0;
+int batteryLevel = 0;
 
 LcmVar icon1(350);
 LcmVar Sensor1(360);
@@ -285,11 +290,69 @@ int keyInt1f = 0;
 int keyInt2f = 0;
 int keyPACT1f = 0;
 int keyPACT2f = 0;
+int iniciando = 0;
+
+bool nonStored = false;
 
 unsigned long currentMillis = millis();
 
 
 void DS3231_setup(void);
+
+void ABRINDO() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);  // abrir
+
+  for (int i = 0; i <= 12000; i += 10) {
+    Serial.println("abrindo");
+    Serial.print("i: ");
+    Serial.println(i);
+    delay(15);
+  }
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);  // aberto
+
+  status1 = 1;
+  status2 = 0;
+}
+
+void FECHANDO() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);  // fechar
+
+  for (int l = 0; l <= 6000; l += 5) {
+    Serial.println("fechando");
+    Serial.print("l: ");
+    Serial.println(l);
+    delay(15);
+  }
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);  // fechado
+
+  status1 = 0;
+  status2 = 1;
+}
+
+
+void CALIBRA() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);  // fechar
+
+  for (int l = 0; l <= 10000; l += 5) {
+    Serial.println("calibra");
+    Serial.print("l: ");
+    Serial.println(l);
+    delay(10);
+  }
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);  // fechado
+
+  status1 = 0;
+  status2 = 1;
+}
 
 
 void keyFinder() {
@@ -366,7 +429,7 @@ void confereData() {
 
 void set_display_config() {
  
- Serial.print("verificando a atividade");
+ 
 
   Arnold = ON2 + OF2 + tempMaxEntrada2 + tempMinEntrada2 + tempMaxMassa2 + tempMinMassa2;
 
@@ -562,7 +625,11 @@ void setup() {
 
   Lcm.begin();  // Inicia e configura o LCM
 
-  Serial.begin(9600);
+  
+
+  Serial.begin(115200);
+
+  Serial2.begin(115200);
 
   IPAddress staticIP(192, 168, 4, 2);
   IPAddress gateway(192, 168, 4, 1);
@@ -584,10 +651,17 @@ void setup() {
   //declaração de pinos, OUTPUT para aqueles que precisam mandar algum sinal e INPUT para aqueles que precisam receber um sinal, no caso o sinal GND
   pinMode(OUT_QUEIMADOR, OUTPUT);
   pinMode(OUT_TEMPO, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(BUZINA, OUTPUT);
 
   //iniciando todas as variáveis de saída como desligadas para não começar com algum problema
   digitalWrite(OUT_QUEIMADOR, LOW);
   digitalWrite(OUT_TEMPO, LOW);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(BUZINA, LOW);
+
 
   xSemaphore = xSemaphoreCreateBinary();
   // Certifique-se de que o semáforo foi criado com sucesso
@@ -611,7 +685,7 @@ void setup() {
                           NULL,                 /* Parâmetro passado para a task - não estamos usando nenhum */
                           5,                    /* Prioridade da task */
                           &Task1,               /* Handle da task*/
-                          1);                   //core em que a task opera (existem dois cores para ESP32, core 0 e 1);
+                          0);                   //core em que a task opera (existem dois cores para ESP32, core 0 e 1);
 
 
   xTaskCreatePinnedToCore(&TaskPlanilhaS,  /* Função que implementa a task */
@@ -635,22 +709,28 @@ void setup() {
   DS3231_setup();  //fazendo o setup do DS3231 que permite a conexão do ESP32 ao RTC
   setMaxAndMin1();
   setSensorValues();
+
+  readCredentialsFromEEPROM();
   RtcDateTime now = Rtc.GetDateTime();
   
 }
 
 void loop() {
 
- Serial.print("Fazendo o loop");
  currentMillis = millis();
 
-  //lcd_loop();
+  if(nonStored ==  true){
+    
+    Page3();
+    
+  }
+  else
+  {
   keyFinder();
   confereData();
   set_display_config();
   Page1();
   Page2();
-  Page3();
   Page4();
   Page5();
 
@@ -658,12 +738,12 @@ void loop() {
   Page8();
   Page9();
   Page10();
-  
+  }
 
  
 
  
-  if (currentMillis - lastUpdateTime >= 10000) {
+  if (currentMillis - lastUpdateTime >= 30000) {
     lastUpdateTime = currentMillis;
     atualizaTemp();
     atualizaData();
