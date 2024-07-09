@@ -149,7 +149,7 @@ float readTemperature() {
 //alou socorro
 void envia_temp(float temperature) {
   if (client.connect(Server, esp32ServerPort)) {
-    toSend = "GET /?sensor=12"; // Sensor number
+    toSend = "GET 192.168.4.1/TE="; // Sensor numberGET 192.168.4.1/TM=
     toSend += "&temp=";
     toSend += temperature * 100; // Multiply the temperature by 100 to send as integer
     toSend += " HTTP/1.1\r\n";

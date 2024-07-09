@@ -148,7 +148,8 @@ float readTemperature() {
 //alou socorro
 void envia_temp(float temperature, float batteryPercent) {
   if (client.connect(Server, esp32ServerPort)) {
-    toSend = "GET /?sensor=9"; // Sensor number
+    
+    toSend = "GET 192.168.4.1/TM="; // Sensor numberGET 192.168.4.1/TM=
     toSend += "&temp=";
     toSend += temperature * 100; // Multiply the temperature by 100 to send as integer
     toSend += "&batt=";   
